@@ -3,6 +3,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/devm-helpers.h>
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/kernel.h>
@@ -202,6 +203,7 @@ struct wled {
 
 	struct wled_config cfg;
 	struct delayed_work ovp_work;
+	struct delayed_work fault_work;
 
 	/* Configures the brightness. Applicable for wled3, wled4 and wled5 */
 	int (*wled_set_brightness)(struct wled *wled, u16 brightness);
@@ -294,6 +296,17 @@ static void wled_ovp_work(struct work_struct *work)
 {
 	struct wled *wled = container_of(work,
 					 struct wled, ovp_work.work);
+	
+	disable_irq(wled->ovp_irq);
+
+	/* move it here is due to a known issue of spurious irq storm for 10ms */
+	regmap_update_bits(wled->regmap, wled->ctrl_addr +
+                                WLED3_CTRL_REG_MOD_EN,
+                                WLED3_CTRL_REG_MOD_EN_MASK,
+                                1 << WLED3_CTRL_REG_MOD_EN_SHIFT);
+
+	msleep(50);
+
 	enable_irq(wled->ovp_irq);
 }
 
@@ -304,13 +317,6 @@ static int wled_module_enable(struct wled *wled, int val)
 	if (wled->disabled_by_short)
 		return -ENXIO;
 
-	rc = regmap_update_bits(wled->regmap, wled->ctrl_addr +
-				WLED3_CTRL_REG_MOD_EN,
-				WLED3_CTRL_REG_MOD_EN_MASK,
-				val << WLED3_CTRL_REG_MOD_EN_SHIFT);
-	if (rc < 0)
-		return rc;
-
 	if (wled->ovp_irq > 0) {
 		if (val) {
 			/*
@@ -319,12 +325,17 @@ static int wled_module_enable(struct wled *wled, int val)
 			 * enabling the IRQ for 10ms to ensure that the
 			 * soft start is complete.
 			 */
-			schedule_delayed_work(&wled->ovp_work, HZ / 100);
-		} else {
-			if (!cancel_delayed_work_sync(&wled->ovp_work))
-				disable_irq(wled->ovp_irq);
+			schedule_delayed_work(&wled->ovp_work, 0);
 		}
 	}
+
+	/* the only case is to switch it off. safe to do it here */
+	rc = regmap_update_bits(wled->regmap, wled->ctrl_addr +
+                                WLED3_CTRL_REG_MOD_EN,
+                                WLED3_CTRL_REG_MOD_EN_MASK,
+                                val << WLED3_CTRL_REG_MOD_EN_SHIFT);
+	if (rc < 0)
+		return rc;
 
 	return 0;
 }
@@ -524,7 +535,6 @@ static int wled5_cabc_config(struct wled *wled, bool enable)
 	return 0;
 }
 
-#define WLED_SHORT_DLY_MS			20
 #define WLED_SHORT_CNT_MAX			5
 #define WLED_SHORT_RESET_CNT_DLY_US		USEC_PER_SEC
 
@@ -556,7 +566,7 @@ static irqreturn_t wled_short_irq_handler(int irq, void *_wled)
 
 	wled->last_short_event = ktime_get();
 
-	msleep(WLED_SHORT_DLY_MS);
+	/* no more need to sleep 20ms in irq handler, put it in a tasklet for 50ms */
 	rc = wled_module_enable(wled, true);
 	if (rc < 0)
 		dev_err(wled->dev, "wled enable failed rc:%d\n", rc);
@@ -837,13 +847,15 @@ static irqreturn_t wled_ovp_irq_handler(int irq, void *_wled)
 	struct wled *wled = _wled;
 	int rc;
 	u32 int_sts, fault_sts;
+	
+	disable_irq(wled->ovp_irq);
 
 	rc = regmap_read(wled->regmap,
 			 wled->ctrl_addr + WLED3_CTRL_REG_INT_RT_STS, &int_sts);
 	if (rc < 0) {
 		dev_err(wled->dev, "Error in reading WLED3_INT_RT_STS rc=%d\n",
 			rc);
-		return IRQ_HANDLED;
+		goto exit;
 	}
 
 	rc = regmap_read(wled->regmap, wled->ctrl_addr +
@@ -851,7 +863,7 @@ static irqreturn_t wled_ovp_irq_handler(int irq, void *_wled)
 	if (rc < 0) {
 		dev_err(wled->dev, "Error in reading WLED_FAULT_STATUS rc=%d\n",
 			rc);
-		return IRQ_HANDLED;
+		goto exit;
 	}
 
 	if (fault_sts & (WLED3_CTRL_REG_OVP_FAULT_BIT |
@@ -861,13 +873,26 @@ static irqreturn_t wled_ovp_irq_handler(int irq, void *_wled)
 
 	if (fault_sts & WLED3_CTRL_REG_OVP_FAULT_BIT) {
 		if (wled->wled_auto_detection_required(wled)) {
-			mutex_lock(&wled->lock);
-			wled_auto_string_detection(wled);
-			mutex_unlock(&wled->lock);
+			cancel_delayed_work(&wled->fault_work);
+			schedule_delayed_work(&wled->fault_work, 0);
 		}
 	}
 
+exit:
+	enable_irq(wled->ovp_irq);
+
 	return IRQ_HANDLED;
+}
+
+static void wled_fault_ovp_work(struct work_struct *work) {
+	struct wled *wled = container_of(work,
+                                         struct wled, fault_work.work);
+
+	mutex_lock(&wled->lock);
+
+	wled_auto_string_detection(wled);
+
+	mutex_unlock(&wled->lock);
 }
 
 static int wled3_setup(struct wled *wled)
@@ -1596,7 +1621,7 @@ static int wled_configure_ovp_irq(struct wled *wled,
 	}
 
 	rc = devm_request_threaded_irq(wled->dev, wled->ovp_irq, NULL,
-				       wled_ovp_irq_handler, IRQF_ONESHOT,
+				       wled_ovp_irq_handler, IRQF_ONESHOT | IRQ_TYPE_EDGE_RISING,
 				       "wled_ovp_irq", wled);
 	if (rc < 0) {
 		dev_err(wled->dev, "Unable to request ovp_irq (err:%d)\n",
@@ -1604,15 +1629,15 @@ static int wled_configure_ovp_irq(struct wled *wled,
 		wled->ovp_irq = 0;
 		return 0;
 	}
+	
+	devm_delayed_work_autocancel(wled->dev, &wled->ovp_work, wled_ovp_work);
+	
+	devm_delayed_work_autocancel(wled->dev, &wled->fault_work, wled_fault_ovp_work);
 
 	rc = regmap_read(wled->regmap, wled->ctrl_addr +
 			 WLED3_CTRL_REG_MOD_EN, &val);
 	if (rc < 0)
 		return rc;
-
-	/* Keep OVP irq disabled until module is enabled */
-	if (!(val & WLED3_CTRL_REG_MOD_EN_MASK))
-		disable_irq(wled->ovp_irq);
 
 	return 0;
 }
@@ -1693,8 +1718,6 @@ static int wled_probe(struct platform_device *pdev)
 		dev_err(wled->dev, "Invalid WLED version\n");
 		break;
 	}
-
-	INIT_DELAYED_WORK(&wled->ovp_work, wled_ovp_work);
 
 	rc = wled_configure_short_irq(wled, pdev);
 	if (rc < 0)
