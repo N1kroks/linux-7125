@@ -25,16 +25,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-
-		framebuffer@9c000000 {
-			compatible = "simple-framebuffer";
-			reg = <0x0 0x9c000000 0x0 (1080 * 2400 * 4)>;
-			width = <1080>;
-			height = <2400>;
-			stride = <(1080 * 4)>;
-			format = "a8r8g8b8";
-			clocks = <&gcc GCC_DISP_HF_AXI_CLK>;
-		};
 	};
 
 	gpio_keys: gpio-keys {
@@ -107,6 +97,17 @@
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
 		};
+	};
+};
+
+&pm6150l_gpios {
+	panel_reset_pins: panel-reset{
+		pins = "gpio3";
+		function = "func1";
+		qcom,drive-strength = <2>;
+		power-source = <0>;
+		bias-disable;
+		output-low;
 	};
 };
 
@@ -328,9 +329,109 @@
 	};
 };
 
-&dispcc {
-	/* HACK: disable until a panel driver is ready to retain simplefb */
-	status = "disabled";
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l3c_1p23>;
+	status = "okay";
+
+	panel: panel@0 {
+		reg = <0>;
+
+		vddio-supply = <&vreg_l18a_3p0>;
+
+		reset-gpios = <&pm6150l_gpios 3 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reset_pins &panel_te_pin>;
+
+		backlight = <&pm6150l_wled>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+};
+
+/delete-node/ &gpu_opp_table;
+&gpu {
+	// Because miatoll uses AB variant with reduced gpu frequencies
+	gpu_opp_table: opp-table {
+		compatible = "operating-points-v2";
+
+		opp-750000000 {
+			opp-hz = /bits/ 64 <750000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+			opp-peak-kBps = <7216000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-650000000 {
+			opp-hz = /bits/ 64 <650000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+			opp-peak-kBps = <7216000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-565000000 {
+			opp-hz = /bits/ 64 <565000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+			opp-peak-kBps = <5412000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-430000000 {
+			opp-hz = /bits/ 64 <430000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+			opp-peak-kBps = <5412000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-355000000 {
+			opp-hz = /bits/ 64 <355000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+			opp-peak-kBps = <3072000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-267000000 {
+			opp-hz = /bits/ 64 <267000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
+			opp-peak-kBps = <3072000>;
+			opp-supported-hw = <0x08>;
+		};
+
+		opp-180000000 {
+			opp-hz = /bits/ 64 <180000000>;
+			opp-level = <RPMH_REGULATOR_LEVEL_MIN_SVS>;
+			opp-peak-kBps = <1804000>;
+			opp-supported-hw = <0x08>;
+		};
+	};
+
+	zap-shader {
+		memory-region = <&gpu_mem>;
+	};
+};
+
+&pm6150l_wled {
+	qcom,cabc;
+	qcom,cabc-sel = <1>;
+	qcom,num-strings = <3>;
+	status = "okay";
 };
 
 &pm6150_resin {
@@ -406,6 +507,15 @@
 			function = "gpio";
 			bias-pull-up;
 			drive-strength = <2>;
+		};
+	};
+
+	panel_te_pin: panel-te {
+		mux {
+			pins = "gpio10";
+			function = "mdp_vsync";
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 	};
 };
