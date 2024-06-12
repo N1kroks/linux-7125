@@ -27,6 +27,15 @@
 		ranges;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		
+		charge-full-design-microamp-hours = <5020000>;
+
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4400000>;
+	};
+
 	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 
@@ -431,6 +440,11 @@
 	qcom,cabc;
 	qcom,cabc-sel = <1>;
 	qcom,num-strings = <3>;
+	status = "okay";
+};
+
+&pm6150_qgauge {
+	monitored-battery = <&battery>;
 	status = "okay";
 };
 
