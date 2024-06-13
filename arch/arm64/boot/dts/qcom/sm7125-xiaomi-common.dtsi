@@ -438,6 +438,12 @@
 	};
 };
 
+&ipa {
+	firmware-name = "qcom/sm7125/miatoll/ipa_fws.mbn";
+	memory-region = <&ipa_fw_mem>;
+	status = "okay";
+};
+
 &pm6150l_wled {
 	qcom,cabc;
 	qcom,cabc-sel = <1>;
@@ -627,5 +633,10 @@
 &usb_1_qmpphy {
 	vdda-phy-supply = <&vreg_l4a_0p88>;
 	vdda-pll-supply = <&vreg_l3c_1p23>;
+	status = "okay";
+};
+
+&venus {
+	firmware-name = "qcom/sm7125/miatoll/venus.mbn";
 	status = "okay";
 };
