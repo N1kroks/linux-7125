@@ -471,6 +471,9 @@ static int tas2562_volume_control_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
+	
+//Sometimes doesn't work with "amixer -c0 cset" command. Maybe it has to do something with 'page' switching
+#if 0
 	int ret;
 	u32 reg_val;
 
@@ -491,6 +494,7 @@ static int tas2562_volume_control_put(struct snd_kcontrol *kcontrol,
 				      ((reg_val >> 24) & 0xff));
 	if (ret)
 		return ret;
+#endif
 
 	tas2562->volume_lvl = ucontrol->value.integer.value[0];
 
