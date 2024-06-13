@@ -433,6 +433,7 @@
 	};
 
 	zap-shader {
+		firmware-name = "qcom/sm7125/miatoll/a615_zap.mbn";
 		memory-region = <&gpu_mem>;
 	};
 };
