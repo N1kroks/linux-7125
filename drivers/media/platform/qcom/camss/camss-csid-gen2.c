@@ -260,17 +260,12 @@ static void __csid_configure_testgen(struct csid_device *csid, u8 enable, u8 vc)
 
 static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 vc)
 {
-	struct csid_testgen_config *tg = &csid->testgen;
-	u32 val;
-	u32 phy_sel = 0;
 	/* Source pads matching RDI channels on hardware. Pad 1 -> RDI0, Pad 2 -> RDI1, etc. */
 	struct v4l2_mbus_framefmt *input_format = &csid->fmt[MSM_CSID_PAD_FIRST_SRC + vc];
 	const struct csid_format_info *format = csid_get_fmt_entry(csid->res->formats->formats,
 								   csid->res->formats->nformats,
 								   input_format->code);
-
-	if (!tg->enabled)
-		phy_sel = csid->phy.csiphy_id;
+	u32 val;
 
 	/*
 	 * DT_ID is a two bit bitfield that is concatenated with
