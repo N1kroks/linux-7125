@@ -13,3 +13,7 @@
 };
 
 &panel { compatible = "mdss,nt36675-tianma"; };
+&touchscreen { 
+	compatible = "novatek,nt36xxx-spi"; 
+	firmware-name = "novatek_ts_tianma_fw.bin";
+};

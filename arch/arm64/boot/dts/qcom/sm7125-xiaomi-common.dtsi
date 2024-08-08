@@ -8,6 +8,7 @@
 #include <dt-bindings/arm/qcom,ids.h>
 #include <dt-bindings/firmware/qcom,scm.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/dma/qcom-gpi.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/usb/pd.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
@@ -613,6 +614,36 @@
 			drive-strength = <2>;
 		};
 	};
+	
+	ts_reset_active: ts-reset-active-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
+	};
+
+	ts_reset_suspend: ts-reset-suspend-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+		output-high;
+	};
+
+	ts_int_active: ts-int-active-state {
+		pins = "gpio9";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
+	};
+
+	ts_int_suspend: ts-int-suspend-state {
+		pins = "gpio9";
+		function = "gpio";
+		drive-strength = <16>;
+		input-enable;
+		bias-disable;
+	};
 
 	panel_te_pin: panel-te {
 		mux {
@@ -646,6 +677,32 @@
 			shutdown-gpios = <&tlmm 51 0>;
 			ti,vmon-slot-no = <2>;
 			ti,imon-slot-no = <0>;
+	};
+};
+
+&spi11 {
+	status = "okay";
+	clock-frequency = <8000000>;
+
+	dmas = <&gpi_dma1 0 5 QCOM_GPI_SPI>,
+		<&gpi_dma1 1 5 QCOM_GPI_SPI>;
+	dma-names = "tx", "rx";
+
+	touchscreen: touchscreen@0 {
+		reg = <0>;
+
+		spi-max-frequency = <8000000>;
+
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-names = "default", "sleep";
+		
+		reset-gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+		irq-gpio = <&tlmm 9 IRQ_TYPE_EDGE_FALLING>;
+
+		vio-supply = <&vreg_l18a_3p0>;
+
+		panel = <&panel>;
 	};
 };
 
