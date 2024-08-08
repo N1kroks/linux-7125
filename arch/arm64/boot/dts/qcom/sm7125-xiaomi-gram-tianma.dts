@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2023, Joe Mason <buddyjojo06@outlook.com>
+ */
+
+/dts-v1/;
+
+#include "sm7125-xiaomi-gram.dtsi"
+
+/ {
+	model = "Xiaomi POCO M2 Pro (Tianma)";
+};
+
+&panel { compatible = "mdss,nt36675-tianma"; };
