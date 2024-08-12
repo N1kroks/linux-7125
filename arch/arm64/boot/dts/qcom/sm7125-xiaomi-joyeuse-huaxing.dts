@@ -13,3 +13,8 @@
 };
 
 &panel { compatible = "mdss,ft8756-huaxing"; };
+&touchscreen {
+	compatible = "focaltech,ft8756-spi";
+	firmware-name = "focaltech_ts_fw_huaxing.bin";
+	reset-gpio = <&tlmm 8 GPIO_ACTIVE_LOW>;
+};
