@@ -16,4 +16,5 @@
 &touchscreen { 
 	compatible = "novatek,nt36xxx-spi"; 
 	firmware-name = "novatek_ts_tianma_fw.bin";
+	reset-gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
 };

@@ -697,7 +697,6 @@
 		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
 		pinctrl-names = "default", "sleep";
 		
-		reset-gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
 		irq-gpio = <&tlmm 9 IRQ_TYPE_EDGE_FALLING>;
 
 		vio-supply = <&vreg_l18a_3p0>;
