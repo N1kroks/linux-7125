@@ -31,6 +31,8 @@
 	};
 
 	aliases {
+		bluetooth0 = &bluetooth;
+		hsuart0 = &uart3;
 		wifi0 = &wifi;
 	};
 	
@@ -641,6 +643,53 @@
 			drive-strength = <2>;
 		};
 	};
+
+	qup_uart3_sleep: qup-uart3-sleep-state {
+		pinmux {
+			pins = "gpio38", "gpio39",
+				"gpio40", "gpio41";
+			function = "gpio";
+		};
+
+		pinconf-cts {
+			/*
+			 * Configure a pull-down on CTS to match the pull of
+			 * the Bluetooth module.
+			 */
+			pins = "gpio38";
+			bias-pull-down;
+		};
+
+		pinconf-rts {
+			/*
+			 * Configure pull-down on RTS. As RTS is active low
+			 * signal, pull it low to indicate the BT SoC that it
+			 * can wakeup the system anytime from suspend state by
+			 * pulling RX low (by sending wakeup bytes).
+			 */
+			pins = "gpio39";
+			bias-pull-down;
+		};
+
+		pinconf-tx {
+			/*
+			 * Configure pull-up on TX when it isn't actively driven
+			 * to prevent BT SoC from receiving garbage during sleep.
+			 */
+			pins = "gpio40";
+			bias-pull-up;
+		};
+
+		pinconf-rx {
+			/*
+			 * Configure a pull-up on RX. This is needed to avoid
+			 * garbage data when the TX pin of the Bluetooth module
+			 * is floating which may cause spurious wakeups.
+			 */
+			pins = "gpio41";
+			bias-pull-up;
+		};
+	};
 	
 	ts_reset_active: ts-reset-active-state {
 		pins = "gpio8";
@@ -891,6 +940,31 @@
 &vamacro {
 	qcom,dmic-sample-rate = <600000>;
 	status = "okay";
+};
+
+&uart3 {
+	/delete-property/interrupts;
+	interrupts-extended = <&intc GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>,
+				<&tlmm 41 IRQ_TYPE_EDGE_FALLING>;
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-1 = <&qup_uart3_sleep>;
+
+	status = "okay";
+
+	bluetooth: bluetooth {
+		compatible = "qcom,wcn3991-bt";
+
+		local-bd-address = [ 00 00 EF BE AD DE ];
+
+		vddio-supply = <&vreg_l10a_1p8>;
+		vddxo-supply = <&vreg_l1c_1p8>;
+		vddrf-supply = <&vreg_l2c_1p3>;
+		vddch0-supply = <&vreg_l10c_3p3>;
+		swctrl-gpios = <&tlmm 73 GPIO_ACTIVE_HIGH>;
+
+		max-speed = <3200000>;
+	};
 };
 
 &ufs_mem_hc {
