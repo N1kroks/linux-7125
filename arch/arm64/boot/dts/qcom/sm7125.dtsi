@@ -424,6 +424,14 @@
 	};
 };
 
+&remoteproc_adsp {
+	glink-edge {
+		fastrpc {
+			qcom,non-secure-domain;
+		};
+	};
+};
+
 &usb_1_dwc3 {
     ports {
         #address-cells = <1>;
