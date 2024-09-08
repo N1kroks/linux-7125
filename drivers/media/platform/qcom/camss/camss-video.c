@@ -212,15 +212,20 @@ static int video_check_format(struct camss_video *video)
 
 	sd_pix->pixelformat = pix->pixelformat;
 	ret = video_get_subdev_format(video, &format);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(video->camss->dev, "Failed to get subdev format");
 		return ret;
+	}
 
 	if (pix->pixelformat != sd_pix->pixelformat ||
 	    pix->height != sd_pix->height ||
 	    pix->width != sd_pix->width ||
 	    pix->num_planes != sd_pix->num_planes ||
-	    pix->field != format.fmt.pix_mp.field)
+	    pix->field != format.fmt.pix_mp.field) {
+		dev_err(video->camss->dev, "pix: pfmt=%c%c%c%c, height=%u, width=%u, planes=%u, field=%u", pix->pixelformat, pix->pixelformat >> 8, pix->pixelformat >> 16, pix->pixelformat >> 24, pix->height, pix->width, pix->num_planes, pix->field);
+		dev_err(video->camss->dev, "sd_pix: pfmt=%c%c%c%c, height=%u, width=%u, planes=%u, field=%u", sd_pix->pixelformat, sd_pix->pixelformat >> 8, sd_pix->pixelformat >> 16, sd_pix->pixelformat >> 24, sd_pix->height, sd_pix->width, sd_pix->num_planes, sd_pix->field);
 		return -EPIPE;
+	}
 
 	return 0;
 }
@@ -241,8 +246,10 @@ static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	ret = video_check_format(video);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(video->camss->dev, "Failed to check format: %d\n", ret);
 		goto error;
+	}
 
 	entity = &vdev->entity;
 	while (1) {
