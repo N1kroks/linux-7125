@@ -12,6 +12,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/usb/pd.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
+#include <dt-bindings/input/ti-drv2624.h>
 #include "sm7125.dtsi"
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
@@ -746,6 +747,25 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	dmas = <&gpi_dma0 0 4 QCOM_GPI_I2C>,
+			<&gpi_dma0 1 4 QCOM_GPI_I2C>;
+	dma-names = "tx", "rx";
+
+	drv2624: haptics@5a {
+		compatible = "ti,drv2624";
+		reg = <0x5a>;
+		reset-gpios = <&tlmm 52 GPIO_ACTIVE_HIGH>;
+		mode = <DRV2624_LRA_MODE>;
+		lra-frequency = <205>;
+		vib-rated-mv = <2500>;
+		vib-overdrive-mv = <4000>;
 	};
 };
 
