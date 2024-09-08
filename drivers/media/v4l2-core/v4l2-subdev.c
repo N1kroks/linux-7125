@@ -1423,8 +1423,12 @@ static int v4l2_subdev_link_validate_locked(struct media_link *link, bool states
 		if (!ret)
 			continue;
 
-		if (ret != -ENOIOCTLCMD)
+		if (ret != -ENOIOCTLCMD) {
+			dev_dbg(dev,
+				"link_validate failed on sink pad \"%s\":%u\n\n",
+				link->sink->entity->name, link->sink->index);
 			return ret;
+		}
 
 		ret = v4l2_subdev_link_validate_default(sink_subdev, link,
 							&source_fmt, &sink_fmt);
