@@ -822,7 +822,7 @@
 	compatible = "qcom,sm8250-sndcard";
 	pinctrl-0 = <&ter_mi2s_active>;
 	pinctrl-names = "default";
-	model = "XiaomiRedmi9s";
+	model = "Xiaomi-miatoll";
 	audio-routing =
 		"IN1_HPHL", "HPHL_OUT",
 		"IN2_HPHR", "HPHR_OUT",
