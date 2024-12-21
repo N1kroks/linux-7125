@@ -793,6 +793,25 @@
 	};
 };
 
+&spi10 {
+	status = "okay";
+	clock-frequency = <50000000>;
+
+	dmas = <&gpi_dma1 0 4 QCOM_GPI_SPI>,
+		<&gpi_dma1 1 4 QCOM_GPI_SPI>;
+	dma-names = "tx", "rx";
+
+	irled@0 {
+		compatible = "ir-spi-led";
+		reg = <0x0>;
+
+		spi-max-frequency = <19200000>;
+		power-supply = <&vreg_bob>;
+		duty-cycle = /bits/ 8 <60>;
+		led-active-low;
+	};
+};
+
 &spi11 {
 	status = "okay";
 	clock-frequency = <8000000>;
